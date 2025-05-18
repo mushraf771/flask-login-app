@@ -1,0 +1,103 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  dockerHubUsername: '$(dockerHubUsername)'
+  imageName: 'flask-login-app'
+  imageTag: '0.0.0.RELEASE'
+  dockerImage: '$(dockerHubUsername)/$(imageName):$(imageTag)'
+  artifactName: 'flask-login-app'
+  imageTar: '$(artifactName).tar'
+
+steps:
+- script: |
+    python -m pip install --upgrade pip
+    pip install flake8 pytest
+    pip install -r requirements.txt
+  displayName: 'Install dependencies'
+
+- script: |
+    flake8 . --max-line-length=88 --extend-ignore=E203 --exit-zero
+  displayName: 'Run linting with flake8'
+
+- script: |
+    pytest --junitxml=test-results.xml
+  displayName: 'Run tests'
+  continueOnError: true
+
+- task: PublishTestResults@2
+  inputs:
+    testResultsFiles: 'test-results.xml'
+    failTaskOnFailedTests: true
+  condition: succeededOrFailed()
+  displayName: 'Publish test results'
+
+- task: Docker@2
+  inputs:
+    containerRegistry: 'dockerHubConnection'
+    repository: '$(dockerHubUsername)/$(imageName)'
+    command: 'build'
+    Dockerfile: 'Dockerfile'
+    tags: '$(imageTag)'
+  condition: succeeded()
+  displayName: 'Build Docker image'
+
+- script: |
+    docker save -o $(imageTar) $(dockerImage)
+  displayName: 'Export Docker image as tarball'
+  condition: succeeded()
+
+- task: PublishPipelineArtifact@1
+  inputs:
+    targetPath: '$(imageTar)'
+    artifact: '$(artifactName)'
+    publishLocation: 'pipeline'
+  displayName: 'Publish Docker image as pipeline artifact'
+  condition: succeeded()
+
+- task: Docker@2
+  inputs:
+    containerRegistry: 'dockerHubConnection'
+    repository: '$(dockerHubUsername)/$(imageName)'
+    command: 'push'
+    tags: '$(imageTag)'
+  condition: succeeded()
+  displayName: 'Push Docker image to Docker Hub'
+
+- task: SSH@0
+  inputs:
+    sshEndpoint: 'ec2SSHConnection'
+    runOptions: 'inline'
+    inline: |
+      rm -f /home/ubuntu/$(imageTar) || true
+      docker stop $(imageName) || true
+      docker rm $(imageName) || true
+  displayName: 'Clean up EC2 instance'
+  condition: succeeded()
+
+- task: CopyFilesOverSSH@0
+  inputs:
+    sshEndpoint: 'ec2SSHConnection'
+    sourceFolder: '$(Pipeline.Workspace)/$(artifactName)'
+    contents: '$(imageTar)'
+    targetFolder: '/home/ubuntu'
+    cleanTargetFolder: false
+    overWrite: true
+  displayName: 'Copy Docker image tarball to EC2'
+  condition: succeeded()
+
+- task: SSH@0
+  inputs:
+    sshEndpoint: 'ec2SSHConnection'
+    runOptions: 'inline'
+    inline: |
+      docker load -i /home/ubuntu/$(imageTar)
+      docker run -d --name $(imageName) -p 5000:5000 $(dockerImage)
+      rm -f /home/ubuntu/$(imageTar)
+  displayName: 'Load and run Docker image on EC2'
+  condition: succeeded()
