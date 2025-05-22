@@ -7,7 +7,7 @@ pool:
   vmImage: 'ubuntu-latest'
 
 variables:
-  dockerHubUsername: 'your-actual-username'  # Replace with your Docker Hub username
+  dockerHubUsername: '$(dockerHubUsername)'  # Replace with your actual Docker Hub username
   imageName: 'flask-login-app'
   imageTag: '0.2.0.RELEASE'
   artifactName: 'flask-login-app'
@@ -48,8 +48,14 @@ stages:
     - task: Docker@2
       inputs:
         containerRegistry: 'dockerHubConnection'
+        command: 'login'
+      displayName: 'Login to Docker Hub'
+
+    - task: Docker@2
+      inputs:
+        containerRegistry: 'dockerHubConnection'
         repository: '$(dockerHubUsername)/$(imageName)'
-        command: 'buildAndPush'  # Changed to buildAndPush to match display name
+        command: 'buildAndPush'
         Dockerfile: 'Dockerfile'
         tags: '$(imageTag)'
       displayName: 'Build and Push Docker Image'
