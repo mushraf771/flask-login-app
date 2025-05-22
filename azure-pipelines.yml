@@ -7,12 +7,12 @@ pool:
   vmImage: 'ubuntu-latest'
 
 variables:
-  dockerHubUsername: '$(dockerHubUsername)'  # Replace with your actual Docker Hub username
+  dockerHubUsername: 'mushraf771'  # Replace with your actual Docker Hub username
   imageName: 'flask-login-app'
   imageTag: '0.2.0.RELEASE'
   artifactName: 'flask-login-app'
-  imageTar: '$(artifactName).tar'
-  dockerImage: '$(dockerHubUsername)/$(imageName):$(imageTag)'
+  imageTar: 'flask-login-app.tar'  # Static value; don't use variables inside
+  dockerImage: 'mushraf771/flask-login-app:0.2.0.RELEASE'
 
 stages:
 - stage: BuildAndDeploy
