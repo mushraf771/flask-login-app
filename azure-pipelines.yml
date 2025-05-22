@@ -49,7 +49,7 @@ stages:
       inputs:
         containerRegistry: 'dockerHubConnection'
         repository: '$(dockerHubUsername)/$(imageName)'
-        command: 'buildAndPush'
+        command: 'build'
         Dockerfile: 'Dockerfile'
         tags: '$(imageTag)'
       displayName: 'Build and Push Docker Image'
