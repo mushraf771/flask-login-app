@@ -22,7 +22,7 @@ stages:
     steps:
     - task: UsePythonVersion@0
       inputs:
-        versionSpec: '3.10'  # Changed to match Dockerfile
+        versionSpec: '3.10'
 
     - script: |
         python -m pip install --upgrade pip
@@ -49,7 +49,7 @@ stages:
       inputs:
         containerRegistry: 'dockerHubConnection'
         repository: '$(dockerHubUsername)/$(imageName)'
-        command: 'build'
+        command: 'buildAndPush'  # Changed to buildAndPush to match display name
         Dockerfile: 'Dockerfile'
         tags: '$(imageTag)'
       displayName: 'Build and Push Docker Image'
@@ -63,23 +63,32 @@ stages:
         targetPath: '$(imageTar)'
         artifact: '$(artifactName)'
         publishLocation: 'pipeline'
+      displayName: 'Publish Docker image tar artifact'
+
+    - task: DownloadPipelineArtifact@2
+      inputs:
+        artifact: '$(artifactName)'
+        path: '$(Pipeline.Workspace)/downloaded'
+      displayName: 'Download Docker image tar artifact'
 
     - task: SSH@0
       inputs:
         sshEndpoint: 'ec2SSHConnection'
         runOptions: 'inline'
         inline: |
-          docker stop flask-login-app 2>/dev/null || true
-          docker rm flask-login-app 2>/dev/null || true
-          rm -f /home/ubuntu/flask-login-app.tar || true
+          docker stop $(imageName) || true
+          docker rm $(imageName) || true
+          rm -f /home/ubuntu/$(imageTar) || true
+      displayName: 'Clean up existing container on EC2'
 
     - task: CopyFilesOverSSH@0
       inputs:
         sshEndpoint: 'ec2SSHConnection'
-        sourceFolder: '$(Pipeline.Workspace)/$(artifactName)'
+        sourceFolder: '$(Pipeline.Workspace)/downloaded'
         contents: '$(imageTar)'
         targetFolder: '/home/ubuntu'
         overWrite: true
+      displayName: 'Copy Docker image tar to EC2'
 
     - task: SSH@0
       inputs:
@@ -88,3 +97,4 @@ stages:
         inline: |
           docker load -i /home/ubuntu/$(imageTar)
           docker run -d --name $(imageName) -p 5000:5000 $(dockerImage)
+      displayName: 'Load and run Docker image on EC2'
