@@ -7,12 +7,12 @@ pool:
   vmImage: 'ubuntu-latest'
 
 variables:
-  dockerHubUsername: 'mushraf771'  # Replace with your actual Docker Hub username
+  dockerHubUsername: 'mushraf771'  # 🔁 Your actual Docker Hub username
   imageName: 'flask-login-app'
   imageTag: '0.2.0.RELEASE'
   artifactName: 'flask-login-app'
-  imageTar: 'flask-login-app.tar'  # Static value; don't use variables inside
-  dockerImage: 'mushraf771/flask-login-app:0.2.0.RELEASE'
+  imageTar: 'flask-login-app.tar'
+  dockerImage: 'mushraf771/flask-login-app:0.2.0.RELEASE'  # 🔁 Full tag format
 
 stages:
 - stage: BuildAndDeploy
@@ -68,7 +68,7 @@ stages:
       displayName: 'Publish Docker image tar artifact'
 
   - job: DeployToEC2
-    displayName: 'Deploy Image to EC2'
+    displayName: 'Deploy Docker Image to EC2'
     dependsOn: DockerBuildDeploy
     steps:
 
@@ -82,7 +82,7 @@ stages:
       inputs:
         sshEndpoint: 'ec2SSHConnection'
         sourceFolder: '$(Pipeline.Workspace)/downloaded'
-        contents: '$(imageTar)'
+        contents: '**/*.tar'
         targetFolder: '/home/ubuntu'
         overWrite: true
       displayName: 'Copy Docker image tar to EC2'
@@ -102,6 +102,12 @@ stages:
         sshEndpoint: 'ec2SSHConnection'
         runOptions: 'inline'
         inline: |
+          echo "📂 Listing files in /home/ubuntu"
+          ls -lh /home/ubuntu
+
+          echo "📦 Loading Docker image"
           docker load -i /home/ubuntu/$(imageTar)
+
+          echo "🚀 Running container"
           docker run -d --name $(imageName) -p 5000:5000 $(dockerImage)
       displayName: 'Load and run Docker image on EC2'
