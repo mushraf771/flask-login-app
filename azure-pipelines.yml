@@ -104,12 +104,12 @@ stages:
       inputs:
         sshEndpoint: 'ec2SSHConnection'
         runOptions: 'inline'
-        inline: |
-          echo "🧹 Cleaning up existing container on EC2"
-          docker stop $(imageName) 2>/dev/null || true
-          docker rm $(imageName) 2>/dev/null || true
-          rm -f /home/ubuntu/$(imageTar) 2>/dev/null || true
-        displayName: 'Clean up existing container on EC2'
+        # inline: |
+        #   echo "🧹 Cleaning up existing container on EC2"
+        #   docker stop $(imageName) 2>/dev/null || true
+        #   docker rm $(imageName) 2>/dev/null || true
+        #   rm -f /home/ubuntu/$(imageTar) 2>/dev/null || true
+        # displayName: 'Clean up existing container on EC2'
 
     - task: SSH@0
       inputs:
