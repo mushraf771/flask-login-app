@@ -81,7 +81,7 @@ stages:
     - task: CopyFilesOverSSH@0
       inputs:
         sshEndpoint: 'ec2SSHConnection'
-        sourceFolder: '$(Pipeline.Workspace)/downloaded/$(artifactName)'
+        sourceFolder: '$(Pipeline.Workspace)/downloaded'
         contents: '$(imageTar)'
         targetFolder: '/home/ubuntu'
         overWrite: true
