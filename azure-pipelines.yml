@@ -81,8 +81,8 @@ stages:
     - task: CopyFilesOverSSH@0
       inputs:
         sshEndpoint: 'ec2SSHConnection'
-        sourceFolder: '$(Pipeline.Workspace)/downloaded'
-        contents: '**/*.tar'
+        sourceFolder: '$(Pipeline.Workspace)/downloaded/$(artifactName)'
+        contents: '$(imageTar)'
         targetFolder: '/home/ubuntu'
         overWrite: true
       displayName: 'Copy Docker image tar to EC2'
