@@ -9,7 +9,7 @@ pool:
 variables:
   dockerHubUsername: 'your-actual-username'  # Replace with your Docker Hub username
   imageName: 'flask-login-app'
-  imageTag: '0.0.2.RELEASE'
+  imageTag: '0.2.0.RELEASE'
   artifactName: 'flask-login-app'
   imageTar: '$(artifactName).tar'
   dockerImage: '$(dockerHubUsername)/$(imageName):$(imageTag)'
