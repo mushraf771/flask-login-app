@@ -10,7 +10,9 @@ def login():
         password = request.form.get("password")
         if username and password and len(password) >= 6:
             return f"Logged in as {username}"
-        return render_template("login.html", error="Invalid username or password")
+        return render_template(
+            "templates/login.html", error="Invalid username or password"
+        )
     return render_template("login.html")
 
 
