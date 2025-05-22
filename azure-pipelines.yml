@@ -18,7 +18,9 @@ stages:
 - stage: BuildAndDeploy
   displayName: 'Build, Push, and Deploy to EC2'
   jobs:
+
   - job: DockerBuildDeploy
+    displayName: 'Build & Push Docker Image and Publish Artifact'
     steps:
     - task: UsePythonVersion@0
       inputs:
@@ -48,12 +50,6 @@ stages:
     - task: Docker@2
       inputs:
         containerRegistry: 'dockerHubConnection'
-        command: 'login'
-      displayName: 'Login to Docker Hub'
-
-    - task: Docker@2
-      inputs:
-        containerRegistry: 'dockerHubConnection'
         repository: '$(dockerHubUsername)/$(imageName)'
         command: 'buildAndPush'
         Dockerfile: 'Dockerfile'
@@ -71,21 +67,16 @@ stages:
         publishLocation: 'pipeline'
       displayName: 'Publish Docker image tar artifact'
 
+  - job: DeployToEC2
+    displayName: 'Deploy Image to EC2'
+    dependsOn: DockerBuildDeploy
+    steps:
+
     - task: DownloadPipelineArtifact@2
       inputs:
         artifact: '$(artifactName)'
         path: '$(Pipeline.Workspace)/downloaded'
       displayName: 'Download Docker image tar artifact'
-
-    - task: SSH@0
-      inputs:
-        sshEndpoint: 'ec2SSHConnection'
-        runOptions: 'inline'
-        inline: |
-          docker stop $(imageName) || true
-          docker rm $(imageName) || true
-          rm -f /home/ubuntu/$(imageTar) || true
-      displayName: 'Clean up existing container on EC2'
 
     - task: CopyFilesOverSSH@0
       inputs:
@@ -95,6 +86,16 @@ stages:
         targetFolder: '/home/ubuntu'
         overWrite: true
       displayName: 'Copy Docker image tar to EC2'
+
+    - task: SSH@0
+      inputs:
+        sshEndpoint: 'ec2SSHConnection'
+        runOptions: 'inline'
+        inline: |
+          docker stop $(imageName) 2>/dev/null || true
+          docker rm $(imageName) 2>/dev/null || true
+          rm -f /home/ubuntu/$(imageTar) 2>/dev/null || true
+      displayName: 'Clean up existing container on EC2'
 
     - task: SSH@0
       inputs:
