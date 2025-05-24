@@ -9,10 +9,10 @@ def client():
         yield client
 
 
-# def test_login_page_loads(client):
-#     # response = client.get('')
-#     assert response.status_code == 200
-#     assert b'<title>Login</title>' in response.data
+def test_login_page_loads(client):
+    response = client.get('')
+    assert response.status_code == 200
+    assert b'<title>Login</title>' in response.data
 
 
 def test_login_post(client):
