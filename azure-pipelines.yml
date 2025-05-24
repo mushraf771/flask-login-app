@@ -15,15 +15,16 @@ variables:
   dockerImage: '$(dockerHubUsername)/$(imageName):$(imageTag)'
 
 stages:
-- stage: BuildAndDeploy
-  displayName: 'Build, Push, and Deploy to EC2'
+- stage: TestAndLint
+  displayName: 'Run Tests and Linting'
   jobs:
-  - job: DockerBuildDeploy
-    displayName: 'Build & Push Docker Image and Publish Artifact'
+  - job: TestAndLintJob
+    displayName: 'Install Dependencies, Lint, and Test'
     steps:
     - task: UsePythonVersion@0
       inputs:
         versionSpec: '3.10'
+      displayName: 'Set Python version to 3.10'
 
     - script: |
         python -m pip install --upgrade pip
@@ -45,7 +46,16 @@ stages:
         testResultsFiles: 'test-results.xml'
         failTaskOnFailedTests: true
       condition: succeededOrFailed()
+      displayName: 'Publish test results'
 
+- stage: BuildAndPush
+  displayName: 'Build and Push to EC2'
+  dependsOn: TestAndLint
+  condition: succeeded()
+  jobs:
+  - job: DockerBuild
+    displayName: 'Build & Push Docker Image and Publish Artifact'
+    steps:
     - task: Docker@2
       inputs:
         containerRegistry: 'dockerHubConnection'
@@ -72,9 +82,9 @@ stages:
         publishLocation: 'pipeline'
       displayName: 'Publish Docker image tar artifact'
 
-  - job: DeployToEC2
-    displayName: 'Deploy Docker Image to EC2'
-    dependsOn: DockerBuildDeploy
+  - job: PushToEC2
+    displayName: 'Push Docker Image to EC2'
+    dependsOn: DockerBuild
     steps:
     - task: DownloadPipelineArtifact@2
       inputs:
@@ -99,34 +109,3 @@ stages:
           echo "📂 Verifying files in /home/ubuntu after copy"
           ls -lh /home/ubuntu
         displayName: 'Verify copied files on EC2'
-
-    - task: SSH@0
-      inputs:
-        sshEndpoint: 'ec2SSHConnection'
-        runOptions: 'inline'
-        # inline: |
-        #   echo "🧹 Cleaning up existing container on EC2"
-        #   docker stop $(imageName) 2>/dev/null || true
-        #   docker rm $(imageName) 2>/dev/null || true
-        #   rm -f /home/ubuntu/$(imageTar) 2>/dev/null || true
-        # displayName: 'Clean up existing container on EC2'
-
-    - task: SSH@0
-      inputs:
-        sshEndpoint: 'ec2SSHConnection'
-        runOptions: 'inline'
-        inline: |
-          echo "📂 Listing files in /home/ubuntu"
-          ls -lh /home/ubuntu || echo "❌ No files found"
-
-          echo "📦 Loading Docker image"
-          if [ -f "/home/ubuntu/$(imageTar)" ]; then
-            docker load -i /home/ubuntu/$(imageTar)
-          else
-            echo "❌ Error: /home/ubuntu/$(imageTar) not found"
-            exit 1
-          fi
-
-          echo "🚀 Running container"
-          docker run -d --name $(imageName) -p 5000:5000 $(dockerImage)
-        displayName: 'Load and run Docker image on EC2'
