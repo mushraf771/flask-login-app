@@ -109,3 +109,39 @@ stages:
           echo "📂 Verifying files in /home/ubuntu after copy"
           ls -lh /home/ubuntu
         displayName: 'Verify copied files on EC2'
+
+- stage: DeployToEC2
+  displayName: 'Deploy Docker Image on EC2'
+  dependsOn: BuildAndPush
+  condition: succeeded()
+  jobs:
+  - job: RunContainer
+    displayName: 'Load and Run Docker Container'
+    steps:
+    - task: SSH@0
+      inputs:
+        sshEndpoint: 'ec2SSHConnection'
+        runOptions: 'inline'
+        inline: |
+          echo "🛠 Ensuring Docker service is running"
+          sudo systemctl enable docker
+          sudo systemctl start docker
+
+          echo "🧹 Cleaning up existing container"
+          docker stop $(imageName) 2>/dev/null || true
+          docker rm $(imageName) 2>/dev/null || true
+
+          echo "📦 Loading Docker image"
+          if [ -f "/home/ubuntu/$(imageTar)" ]; then
+            docker load -i /home/ubuntu/$(imageTar)
+          else
+            echo "❌ Error: /home/ubuntu/$(imageTar) not found"
+            exit 1
+          fi
+
+          echo "🚀 Running container"
+          docker run -d --name $(imageName) -p 5000:5000 $(dockerImage)
+
+          echo "✅ Verifying container status"
+          docker ps
+        displayName: 'Load and run Docker container on EC2'
